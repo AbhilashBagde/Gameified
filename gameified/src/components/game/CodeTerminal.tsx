@@ -8,15 +8,18 @@ import { validateCommand } from '@/game/engine/commandValidator';
 import { getMission } from '@/game/data/missions';
 import { Terminal, ChevronRight, AlertCircle, CheckCircle2, Lightbulb } from 'lucide-react';
 
-// Monaco loads client-side only
-const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
-  ssr: false,
-  loading: () => (
-    <div className="h-full flex items-center justify-center text-gray-600 font-mono text-xs">
-      Initializing terminal...
-    </div>
-  ),
-});
+// Monaco loads client-side only — ssr:false prevents SSR crash, env check avoids worker errors
+const MonacoEditor = dynamic(
+  () => import('@monaco-editor/react').then((mod) => mod.default),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-full flex items-center justify-center text-gray-600 font-mono text-xs animate-pulse">
+        Loading terminal...
+      </div>
+    ),
+  }
+);
 
 export function CodeTerminal() {
   const {
@@ -123,13 +126,14 @@ export function CodeTerminal() {
             value={code}
             onChange={(v) => setCode(v ?? '')}
             onMount={(editor) => {
-              editor.addCommand(
-                // Ctrl+Enter / Cmd+Enter — keybinding wired up here
-                2048 | 3, // KeyMod.CtrlCmd | KeyCode.Enter
-                handleRun
-              );
+              editor.addCommand(2048 | 3, handleRun); // CtrlCmd+Enter
               editor.focus();
             }}
+            loading={
+              <div className="h-full flex items-center justify-center text-gray-600 font-mono text-xs animate-pulse">
+                Loading terminal...
+              </div>
+            }
             theme="vs-dark"
             options={{
               minimap: { enabled: false },
@@ -142,7 +146,12 @@ export function CodeTerminal() {
               scrollbar: { vertical: 'hidden', horizontal: 'hidden' },
               overviewRulerLanes: 0,
               renderLineHighlight: 'none',
-              suggestOnTriggerCharacters: true,
+              // Disable heavy language features that spawn workers
+              quickSuggestions: false,
+              parameterHints: { enabled: false },
+              suggestOnTriggerCharacters: false,
+              codeLens: false,
+              folding: false,
             }}
           />
         )}
